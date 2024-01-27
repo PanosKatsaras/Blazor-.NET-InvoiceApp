@@ -1,0 +1,22 @@
+﻿@page "/"
+@* Blazor Index page with authentication and authorization *@
+@inject IRepositoryCollection repo
+@inject AuthenticationStateProvider authState
+
+<PageTitle>Home Page</PageTitle>
+@*Only authorized user can see the invoices *@
+<h1>Invoices</h1>
+<AuthorizeView>
+    <Authorized>
+        <InvoicesComponent/>
+    </Authorized>
+    <NotAuthorized>
+        <p>Please log in to see your invoices.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+   
+}
+
+

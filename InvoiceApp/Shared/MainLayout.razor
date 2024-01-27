@@ -1,0 +1,23 @@
+﻿@inherits LayoutComponentBase
+
+<PageTitle>Invoice App</PageTitle>
+
+<div class="page">
+    <div class="sidebar">
+       @* Blazor Left Nav Menu *@
+        <NavMenu />
+    </div>
+
+    <main>
+        <div style="background-color:lightgray;" class="top-row px-4 auth">
+           @*  Login top bar *@
+            <LoginDisplay />
+            @* <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>*@
+        </div>
+        @* The changable body of the page *@
+        <article class="content px-4">
+            @Body
+            <RadzenDialog />
+        </article>
+    </main>
+</div>

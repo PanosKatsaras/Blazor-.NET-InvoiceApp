@@ -1,0 +1,282 @@
+﻿@inject IRepositoryCollection repo
+@inject NavigationManager navManager
+@inject DialogService dialogService
+@inject AuthenticationStateProvider authState
+
+@* Invoice details component *@
+
+@* Alert message! *@
+@if (Message != string.Empty)
+{
+    <script>
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Can't delete selected Line Item, it is being used in an invoice.",
+        });
+    </script>
+}
+
+@* Usage of Radzen *@
+<div class="text-danger">@Message</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label">Invoice Number</label>
+    <div style="margin-top:8px;" class="col-sm-10">
+        @invoice.InvoiceNumber
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="inputDescription">Description</label>
+    <div class="col-sm-10">
+        <RadzenTextBox @bind-Value="invoice.Description" id="inputDescription" class="w-50" Change="@OnChange" />
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="inputDescription">Customer</label>
+    <div class="col-sm-10">
+        <RadzenDropDown @bind-Value=@invoice.CustomerId Data=@customers TextProperty="Name" ValueProperty="Id" Style="width: 100%; max-width: 400px;" Change="@OnChange" />
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="inputDescription">Invoice Terms</label>
+    <div class="col-sm-10">
+        <RadzenDropDown @bind-Value=@invoice.InvoiceTermsId Data=@terms TextProperty="Name" ValueProperty="Id" Style="width: 100%; max-width: 400px;" Change="@OnChange" />
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="inputDescription">Create Date</label>
+    <div class="col-sm-10">
+        <RadzenDatePicker @bind-Value=@invoice.CreateDate ShowTime="false" DateFormat="MM/dd/yyyy" Change="@OnChange" />
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="paidAmount">Paid Amount</label>
+    <div class="col-sm-10">
+        <RadzenNumeric id="paidAmount" ShowUpDown="false" Format="c" TValue="double" @bind-Value=@invoice.Paid Change="@OnChange" />
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="creditAmount">Credit Amount</label>
+    <div class="col-sm-10">
+        <RadzenNumeric id="creditAmount" ShowUpDown="false" Format="c" TValue="double" @bind-Value=@invoice.Credit Change="@OnChange" />
+    </div>
+</div>
+<div class="mb-3 row">
+    <label class="col-sm-2 col-form-label" for="taxRate">Tax Rate (percent)</label>
+    <div class="col-sm-10">
+        <RadzenNumeric id="taxRate" ShowUpDown="false" TValue="double" @bind-Value=@invoice.TaxRate Change="@OnChange" />
+    </div>
+</div>
+<RadzenButton ButtonStyle="ButtonStyle.Primary" class="mt-2 mb-4" Text="Save Changes" Click="@OnSaveChanges" Disabled=@savedisabled />
+
+<h3>Line Items:</h3>
+<RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" class="mt-2 mb-4" Text="Add New Line Item" Click="@InsertRow" Disabled=@(lineItemToInsert != null || lineItemToUpdate != null) />
+<RadzenDataGrid @ref="lineItemsGrid" AllowAlternatingRows="false" AllowSorting="true" EditMode="DataGridEditMode.Single"
+                Data="@lineItems" TItem="InvoiceLineItemDTO" RowUpdate="@OnUpdateRow" RowCreate="@OnCreateRow" Sort="@Reset" ColumnWidth="200px">
+    <Columns>
+        <RadzenDataGridColumn TItem="InvoiceLineItemDTO" Property="Description" Title="Description" Width="200px">
+            <EditTemplate Context="lineitem">
+                <RadzenTextBox @bind-Value="lineitem.Description" Style="width:100%; display: block" Name="Description" />
+                <RadzenRequiredValidator Text="Description is Required" Component="Description" Popup="true" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="InvoiceLineItemDTO" FormatString="{0:C}" Property="UnitPrice" Title="Unit Price" Width="100px">
+            <EditTemplate Context="lineitem">
+                <RadzenNumeric @bind-Value="lineitem.UnitPrice" ShowUpDown="false" Format="c" TValue="double" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="InvoiceLineItemDTO" Property="Quantity" Title="Quantity" Width="50px">
+            <EditTemplate Context="lineitem">
+                <RadzenNumeric @bind-Value="lineitem.Quantity" ShowUpDown="false" TValue="double" Name="Quantity" />
+                <RadzenNumericRangeValidator Min="0" Text="Must be Greater than or Equal to 0." Component="Quantity" Popup="true" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="InvoiceLineItemDTO" Property="Total" Title="Total" Width="150px">
+            <Template Context="lineitem">
+                @string.Format("{0:c}",lineitem.UnitPrice*lineitem.Quantity)
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="InvoiceLineItemDTO" Context="lineitem" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Width="120px">
+            <Template Context="lineitem">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(args => EditRow(lineitem))" @onclick:stopPropagation="true">
+                </RadzenButton>
+                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@(args => DeleteRow(lineitem))" @onclick:stopPropagation="true">
+                </RadzenButton>
+            </Template>
+            <EditTemplate Context="lineitem">
+                <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@((args) => SaveRow(lineitem))">
+                </RadzenButton>
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@((args) => CancelEdit(lineitem))">
+                </RadzenButton>
+                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@(args => DeleteRow(lineitem))">
+                </RadzenButton>
+            </EditTemplate>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+<br />
+<p>Total: @string.Format("{0:c}",InvoiceTotal)</p>
+<p>Tax: @string.Format("{0:c}",InvoiceTax)</p>
+<p>Total with Tax: @string.Format("{0:c}",InvoiceTotalWithTax)</p>
+<p>Amount Due: @string.Format("{0:c}",AmountDue)</p>
+<br />
+<br />
+
+<RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" class="mt-2 mb-4" Text="Delete Invoice" Click="@DeleteInvoice" Disabled=@(lineItemToInsert != null || lineItemToUpdate != null) />
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = String.Empty;
+
+    List<CustomerDTO> customers = new();
+    List<InvoiceTermsDTO> terms = new();
+    InvoiceDTO invoice = new();
+    List<InvoiceLineItemDTO> lineItems = new();
+    RadzenDataGrid<InvoiceLineItemDTO>? lineItemsGrid;
+    InvoiceLineItemDTO? lineItemToInsert;
+    InvoiceLineItemDTO? lineItemToUpdate;
+
+    double InvoiceTotal = 0;
+    double InvoiceTax = 0;
+    double InvoiceTotalWithTax = 0;
+    double AmountDue = 0;
+
+    string Message = string.Empty;
+
+    bool savedisabled = true;
+
+    public void OnChange()
+    {
+        savedisabled = false;
+    }
+
+    async Task DeleteInvoice()
+    {
+        // Alert message before delete Invoice.
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        bool? result = await dialogService.Confirm("Are you sure?", "Remove Invoice", new ConfirmOptions() { OkButtonText = "Yes", CancelButtonText = "No" }); 
+        if (result == true)
+        {
+            await repo.Invoice.DeleteWithLineItems(auth.User, Id);
+            await repo.Save();
+            navManager.NavigateTo("/");
+        }
+    }
+
+
+    public async Task OnSaveChanges()
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        await repo.Invoice.UpdateEntity(auth.User, invoice);
+        await repo.Save();
+        UpdateTotals();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        customers = await repo.Customer.GetAllEntities(auth.User);
+        terms = await repo.InvoiceTerms.GetAllEntities(auth.User);
+        invoice = await repo.Invoice.GetEntityById(auth.User, Id);
+        lineItems = await repo.InvoiceLineItem.GetAllByInvoiceId(auth.User, Id);
+        UpdateTotals();
+    }
+
+    public void UpdateTotals()
+    {
+        InvoiceTotal = 0;
+        foreach (InvoiceLineItemDTO line in lineItems)
+        {
+            InvoiceTotal = InvoiceTotal + line.UnitPrice * line.Quantity;
+        }
+        InvoiceTax = InvoiceTotal * invoice.TaxRate / 100;
+        InvoiceTotalWithTax = InvoiceTotal + InvoiceTax;
+        AmountDue = InvoiceTotalWithTax - invoice.Paid - invoice.Credit;
+
+    }
+
+
+    void Reset()
+    {
+        Message = "";
+        lineItemToInsert = null;
+        lineItemToUpdate = null;
+    }
+
+    async Task EditRow(InvoiceLineItemDTO lineitem)
+    {
+        Message = "";
+        lineItemToUpdate = lineitem;
+        await lineItemsGrid!.EditRow(lineitem);
+    }
+
+    async Task OnUpdateRow(InvoiceLineItemDTO lineitem)
+    {
+        Reset();
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        await repo.InvoiceLineItem.UpdateEntity(auth.User, lineitem);
+        await repo.Save();
+        UpdateTotals();
+    }
+
+    async Task SaveRow(InvoiceLineItemDTO lineitem)
+    {
+        await lineItemsGrid!.UpdateRow(lineitem);
+    }
+    void CancelEdit(InvoiceLineItemDTO lineitem)
+    {
+        Reset();
+
+        lineItemsGrid!.CancelEditRow(lineitem);
+
+    }
+
+    async Task DeleteRow(InvoiceLineItemDTO lineitem)
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        Reset();
+        try
+        {
+            bool found = await repo.InvoiceLineItem.DeleteEntity(auth.User, lineitem.Id);
+            if (found)
+            {
+                await repo.Save();
+                this.lineItems = await repo.InvoiceLineItem.GetAllEntities(auth.User);
+                await lineItemsGrid!.Reload();
+            }
+            else
+            {
+                lineItemsGrid!.CancelEditRow(lineitem);
+                await lineItemsGrid!.Reload();
+            }
+        }
+        catch (RepositoryDeleteException)
+        {
+            // can't delete because would break integrity!
+            Message = " ";
+        }
+        UpdateTotals();
+
+    }
+
+
+    async Task InsertRow()
+    {
+        Message = "";
+        lineItemToInsert = new InvoiceLineItemDTO();
+        await lineItemsGrid!.InsertRow(lineItemToInsert);
+
+    }
+
+    async Task OnCreateRow(InvoiceLineItemDTO lineitem)
+    {
+        Reset();
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        lineitem.InvoiceId = Id;
+        lineitem.Id = await repo.InvoiceLineItem.AddEntity(auth.User, lineitem);
+        await repo.Save();
+        this.lineItems = await repo.InvoiceLineItem.GetAllByInvoiceId(auth.User, Id);
+        UpdateTotals();
+    }
+}

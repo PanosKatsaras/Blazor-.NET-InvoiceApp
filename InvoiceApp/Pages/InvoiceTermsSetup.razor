@@ -1,0 +1,17 @@
+﻿@page "/InvoiceTermsSetup"
+
+<PageTitle>Invoice Terms Setup</PageTitle>
+@* Only authorized user can see the invoice terms *@
+<h1>Invoice Terms</h1>
+<AuthorizeView>
+    <Authorized>
+        <InvoiceTermsSetupComponent />
+    </Authorized>
+    <NotAuthorized>
+        <p>Please log in to see your invoice terms.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+
+}

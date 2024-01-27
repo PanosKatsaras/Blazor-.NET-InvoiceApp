@@ -1,0 +1,150 @@
+﻿@inject IRepositoryCollection repo
+@inject AuthenticationStateProvider authState
+@inject DialogService dialogService
+
+@* Customer setup component *@
+<AuthorizeView>
+    <Authorized>
+
+        @* Alert message! *@
+        @if (Message != string.Empty)
+        {
+            <script>
+                Swal.fire({
+                    icon: "error",
+                    title: "Oops...",
+                    text: "Can't delete selected customer, it is being used in an invoice.",
+                });
+            </script>
+        }
+        @* Usage of Radzen *@
+    <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" class="mt-2 mb-4" Text="Add New Customer" Click="@InsertRow" Disabled=@(customerToInsert != null || customerToUpdate != null) />
+        <RadzenDataGrid @ref="customerGrid" AllowAlternatingRows="false" AllowSorting="true" EditMode="DataGridEditMode.Single"
+                        Data="@customers" TItem="CustomerDTO" RowUpdate="@OnUpdateRow" RowCreate="@OnCreateRow" Sort="@Reset">
+            <Columns>
+                <RadzenDataGridColumn TItem="CustomerDTO" Property="Name" Title="Customer Name" Width="200px">
+                <EditTemplate Context="customer">
+                    <RadzenTextBox @bind-Value="customer.Name" Style="width:100%; display: block" Name="Name" />
+                    <RadzenRequiredValidator Text="Name is Required" Component="Name" Popup="true" />
+                </EditTemplate>
+    
+                </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="CustomerDTO" Context="customer" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Width="150px">
+                        <Template Context="customer">
+                            <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(args => EditRow(customer))" @onclick:stopPropagation="true">
+                            </RadzenButton>
+                            <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@(args => DeleteRow(customer))" @onclick:stopPropagation="true">
+                            </RadzenButton>
+                        </Template>
+                        <EditTemplate Context="customer">
+                            <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@((args) => SaveRow(customer))">
+                            </RadzenButton>
+                            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@((args) => CancelEdit(customer))">
+                            </RadzenButton>
+                            <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1" Click="@(args => DeleteRow(customer))">
+                            </RadzenButton>
+                        </EditTemplate>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+
+    List<CustomerDTO> customers = new();
+    RadzenDataGrid<CustomerDTO>? customerGrid;
+
+    string Message = string.Empty;
+    CustomerDTO? customerToInsert;
+    CustomerDTO? customerToUpdate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        await repo.Customer.Seed(auth.User);
+        await repo.Save();
+        customers = await repo.Customer.GetAllEntities(auth.User);
+    }
+
+    async Task EditRow(CustomerDTO customer)
+    {
+        Message = "";
+        customerToUpdate = customer;
+        await customerGrid!.EditRow(customer);
+    }
+
+    async Task OnUpdateRow(CustomerDTO customer)
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        Reset();
+        await repo.Customer.UpdateEntity(auth.User, customer);
+        await repo.Save();
+    }
+
+    async Task SaveRow(CustomerDTO customer)
+    {
+        Message = "";
+        await customerGrid!.UpdateRow(customer);
+    }
+
+    void CancelEdit(CustomerDTO customer)
+    {
+        Reset();
+        customerGrid!.CancelEditRow(customer);
+    }
+
+    async Task DeleteRow(CustomerDTO customer)
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        Reset();
+        try
+        {
+            // Alert message before delete Customer
+            bool found = await repo.Customer.DeleteEntity(auth.User, customer.Id);
+            bool? result = await dialogService.Confirm("Are you sure?", "Remove Customer", new ConfirmOptions() { OkButtonText = "Yes", CancelButtonText = "No" });
+            if (found == true && result == true)
+            {
+                await repo.Save();
+                await repo.Customer.Seed(auth.User);
+                await repo.Save();
+
+                this.customers = await repo.Customer.GetAllEntities(auth.User);
+                await customerGrid!.Reload();
+            }
+            else
+            {
+                customerGrid!.CancelEditRow(customer);
+                await customerGrid!.Reload();
+            }
+        }
+        catch (RepositoryDeleteException)
+        {
+            // Can't delete because would break integrity.
+            Message = " ";
+        }
+    }
+
+    async Task InsertRow()
+    {
+        Message = "";
+        customerToInsert = new CustomerDTO();
+        await customerGrid!.InsertRow(customerToInsert);
+    }
+
+    async Task OnCreateRow(CustomerDTO customer)
+    {
+        AuthenticationState auth = await authState.GetAuthenticationStateAsync();
+        customer.Id = await repo.Customer.AddEntity(auth.User, customer);
+        await repo.Save();
+        this.customers = await repo.Customer.GetAllEntities(auth.User);
+        customerToInsert = null;
+    }
+
+    void Reset()
+    {
+        Message = "";
+        customerToInsert = null;
+        customerToUpdate = null;
+    }
+}
