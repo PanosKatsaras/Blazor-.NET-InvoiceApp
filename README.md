@@ -11,7 +11,7 @@ This project is a Blazor, .NET application with SQL Server Database connection,
 
 CRUD Operations and Register/Login with Email and Password credentials with use of ASP.NET Identity.
 
-You can Create/Edit/Delete only your Invoices, InvoiceLineTerms/InvoiceLineItems and if you are authenticated User.
+You can Create/Edit/Delete your Invoices, InvoiceLineTerms/InvoiceLineItems only if you are authenticated User.
 
 ## Technologies Used
 .NET 7
