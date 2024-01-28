@@ -43,4 +43,4 @@ This file will contain local configurations including the database connection st
 
 Build and run the Blazor Server/.NET project in Visual Studio or using command-line tools.
 
-Ensure the application successfully connects to the local database specified in appsettings.json.
+Ensure the application successfully connects to the local Database specified in appsettings.json.
