@@ -3,7 +3,7 @@
 ![invoice app image](https://github.com/PanosKatsaras/Blazor-.NET-InvoiceApp/assets/93729093/8c1c86bf-336b-45cc-93e9-d9358a15beec)
 
 
-![invoice app devices](https://github.com/PanosKatsaras/Blazor-.NET-InvoiceApp/assets/93729093/bd9d1634-9cd9-448b-99a4-5be98f8aae44)
+![invoice app devices](https://github.com/PanosKatsaras/Blazor-.NET-InvoiceApp/assets/93729093/3a3e927d-3289-4ab5-8d04-f320419796b8)
 
 
 ## Overview
